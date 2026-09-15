@@ -109,7 +109,6 @@
         .control-group {
             display: flex;
             align-items: center;
-            justify-content: flex-end;
             gap: 0.5rem;
             background: rgba(0, 0, 0, 0.25);
             /* Translucent dark background */
@@ -117,8 +116,15 @@
             padding: 0.15rem;
         }
 
-        .left-handed .control-group {
-            justify-content: flex-start;
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 0.5rem;
+        }
+
+        .left-handed .control-row {
+            flex-direction: row-reverse;
         }
 
         .exercise-header {
@@ -176,7 +182,7 @@
             color: rgba(255, 255, 255, 0.6);
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin-bottom: 0.15rem;
+            margin-bottom: 0;
             font-weight: 500;
         }
 
@@ -262,7 +268,7 @@
         ];
 
         let exercises = JSON.parse(localStorage.getItem('workoutData')) || defaultExercises;
-        
+
         let isLeftHanded = localStorage.getItem('isLeftHanded') === 'true';
         if (isLeftHanded) document.body.classList.add('left-handed');
 
@@ -355,8 +361,8 @@
                             </div>
                         </div>
                         
-                        <div class="row g-2">
-                            <div class="col-12">
+                        <div>
+                            <div class="control-row">
                                 <div class="control-label">Weight (kg)</div>
                                 <div class="control-group">
                                     <button class="control-btn" onclick="updateValue(${ex.id}, 'weight', -1)">-</button>
@@ -364,8 +370,7 @@
                                     <button class="control-btn" onclick="updateValue(${ex.id}, 'weight', 1)">+</button>
                                 </div>
                             </div>
-                            
-                            <div class="col-6">
+                            <div class="control-row">
                                 <div class="control-label">Sets</div>
                                 <div class="control-group">
                                     <button class="control-btn" onclick="updateValue(${ex.id}, 'sets', -1)">-</button>
@@ -373,8 +378,7 @@
                                     <button class="control-btn" onclick="updateValue(${ex.id}, 'sets', 1)">+</button>
                                 </div>
                             </div>
-
-                            <div class="col-6">
+                            <div class="control-row">
                                 <div class="control-label">Reps</div>
                                 <div class="control-group">
                                     <button class="control-btn" onclick="updateValue(${ex.id}, 'reps', -1)">-</button>
