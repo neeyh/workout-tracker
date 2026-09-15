@@ -189,6 +189,34 @@
         ::-webkit-scrollbar {
             display: none;
         }
+
+        .tabs-container::-webkit-scrollbar {
+            display: none;
+        }
+        .workout-tab {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background-color: #2a2a2a;
+            color: #ccc;
+            padding: 0.4rem 0.8rem;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+            border: 1px solid transparent;
+        }
+        .workout-tab.active {
+            background-color: #0d6efd;
+            color: #fff;
+        }
+        .workout-tab .bi-pencil, .workout-tab .bi-x {
+            opacity: 0.5;
+            font-size: 0.9rem;
+        }
+        .workout-tab.active .bi-pencil:hover, .workout-tab.active .bi-x:hover {
+            opacity: 1;
+        }
     </style>
 </head>
 
@@ -211,6 +239,17 @@
                     <i class="bi bi-plus-lg"></i> Add
                 </button>
             </div>
+        </div>
+    </div>
+
+    <div class="tabs-container mx-auto" style="max-width: 600px; padding: 0.75rem 1rem 0; overflow-x: auto; white-space: nowrap;">
+        <div class="d-flex align-items-center">
+            <div id="tabs-list" class="d-flex align-items-center" style="gap: 0.5rem;">
+                <!-- Tabs injected here -->
+            </div>
+            <button class="btn btn-sm btn-outline-secondary rounded-pill ms-2 text-nowrap" onclick="addTab()">
+                <i class="bi bi-plus-lg"></i> Day
+            </button>
         </div>
     </div>
 
@@ -267,7 +306,30 @@
             { id: 3, name: "Push-ups", weight: 0, sets: 3, reps: 20 }
         ];
 
-        let exercises = JSON.parse(localStorage.getItem('workoutData')) || defaultExercises;
+        let workouts = [];
+        let currentTabId = localStorage.getItem('currentTabId');
+
+        const oldData = localStorage.getItem('workoutData');
+        if (oldData) {
+            try {
+                const parsed = JSON.parse(oldData);
+                if (Array.isArray(parsed) && parsed.length > 0 && !parsed[0].exercises) {
+                    workouts = [{ id: 'tab_' + Date.now(), name: 'My Workout', exercises: parsed }];
+                    currentTabId = workouts[0].id;
+                    localStorage.removeItem('workoutData');
+                    localStorage.setItem('workouts', JSON.stringify(workouts));
+                }
+            } catch (e) {}
+        }
+
+        if (workouts.length === 0) {
+            workouts = JSON.parse(localStorage.getItem('workouts')) || [
+                { id: 'tab_default', name: 'Day 1', exercises: defaultExercises }
+            ];
+            if (!currentTabId || !workouts.find(w => w.id === currentTabId)) {
+                currentTabId = workouts[0].id;
+            }
+        }
 
         let isLeftHanded = localStorage.getItem('isLeftHanded') === 'true';
         if (isLeftHanded) document.body.classList.add('left-handed');
@@ -279,25 +341,81 @@
         }
 
         function saveData() {
-            localStorage.setItem('workoutData', JSON.stringify(exercises));
+            localStorage.setItem('workouts', JSON.stringify(workouts));
+            localStorage.setItem('currentTabId', currentTabId);
+        }
+
+        function getCurrentWorkout() {
+            let workout = workouts.find(w => w.id === currentTabId);
+            if (!workout) {
+                workout = workouts[0];
+                currentTabId = workout.id;
+            }
+            return workout;
+        }
+
+        function switchTab(id) {
+            currentTabId = id;
+            saveData();
+            render();
+        }
+
+        function addTab() {
+            const name = prompt('Enter a name for the new workout day:', 'Day ' + (workouts.length + 1));
+            if (name) {
+                const newId = 'tab_' + Date.now();
+                workouts.push({ id: newId, name: name.trim(), exercises: [] });
+                currentTabId = newId;
+                saveData();
+                render();
+            }
+        }
+
+        function renameTab(id) {
+            const workout = workouts.find(w => w.id === id);
+            if (workout) {
+                const newName = prompt('Rename workout day:', workout.name);
+                if (newName && newName.trim() !== '') {
+                    workout.name = newName.trim();
+                    saveData();
+                    render();
+                }
+            }
+        }
+
+        function deleteTab(id) {
+            if (workouts.length <= 1) {
+                alert("You cannot delete your only workout day.");
+                return;
+            }
+            if (confirm("Are you sure you want to delete this entire workout day?")) {
+                workouts = workouts.filter(w => w.id !== id);
+                if (currentTabId === id) {
+                    currentTabId = workouts[0].id;
+                }
+                saveData();
+                render();
+            }
         }
 
         function updateName(id, newName) {
-            const index = exercises.findIndex(ex => ex.id === id);
+            const workout = getCurrentWorkout();
+            const index = workout.exercises.findIndex(ex => ex.id === id);
             if (index !== -1) {
-                exercises[index].name = newName;
+                workout.exercises[index].name = newName;
                 saveData();
             }
         }
 
         function updateValue(id, field, delta) {
-            const index = exercises.findIndex(ex => ex.id === id);
+            const workout = getCurrentWorkout();
+            const index = workout.exercises.findIndex(ex => ex.id === id);
             if (index !== -1) {
                 let step = field === 'weight' ? 2.5 : 1;
-                exercises[index][field] = Math.max(0, exercises[index][field] + (delta * step));
+                workout.exercises[index][field] = Math.max(0, workout.exercises[index][field] + (delta * step));
 
                 if (field === 'weight') {
-                    exercises[index][field] = parseFloat(exercises[index][field].toFixed(1));
+                    workout.exercises[index][field] = parseFloat(workout.exercises[index][field].toFixed(1));
                 }
                 saveData();
                 render();
@@ -305,20 +423,22 @@
         }
 
         function deleteExercise(id) {
+            const workout = getCurrentWorkout();
             if (confirm("Remove this exercise?")) {
-                exercises = exercises.filter(ex => ex.id !== id);
+                workout.exercises = workout.exercises.filter(ex => ex.id !== id);
                 saveData();
                 render();
             }
         }
 
         function addExercise() {
+            const workout = getCurrentWorkout();
             const name = document.getElementById('newExName').value || 'New Exercise';
             const weight = parseFloat(document.getElementById('newExWeight').value) || 0;
             const sets = parseInt(document.getElementById('newExSets').value) || 0;
             const reps = parseInt(document.getElementById('newExReps').value) || 0;
 
-            exercises.push({
+            workout.exercises.push({
                 id: Date.now(),
                 name: name,
                 weight: weight,
@@ -332,15 +452,38 @@
         }
 
         function render() {
+            renderTabs();
+            renderExercises();
+        }
+
+        function renderTabs() {
+            const list = document.getElementById('tabs-list');
+            list.innerHTML = '';
+            workouts.forEach(w => {
+                const isActive = w.id === currentTabId;
+                list.innerHTML += `
+                    <div class="workout-tab ${isActive ? 'active' : ''}" onclick="switchTab('${w.id}')">
+                        <span>${w.name}</span>
+                        ${isActive ? `
+                            <i class="bi bi-pencil ms-2" onclick="event.stopPropagation(); renameTab('${w.id}')"></i>
+                            <i class="bi bi-x ms-1" onclick="event.stopPropagation(); deleteTab('${w.id}')"></i>
+                        ` : ''}
+                    </div>
+                `;
+            });
+        }
+
+        function renderExercises() {
             const list = document.getElementById('exercise-list');
             list.innerHTML = '';
+            const workout = getCurrentWorkout();
 
-            if (exercises.length === 0) {
+            if (workout.exercises.length === 0) {
                 list.innerHTML = '<div class="text-center text-muted mt-5">No exercises added. Tap + Add to start.</div>';
                 return;
             }
 
-            exercises.forEach(ex => {
+            workout.exercises.forEach(ex => {
                 list.innerHTML += `
                     <div class="exercise-card p-2" data-id="${ex.id}">
                         <div class="exercise-header">
@@ -400,9 +543,21 @@
             animation: 150,
             ghostClass: 'sortable-ghost',
             onEnd: function (evt) {
-                const movedItem = exercises.splice(evt.oldIndex, 1)[0];
-                exercises.splice(evt.newIndex, 0, movedItem);
+                const workout = getCurrentWorkout();
+                const movedItem = workout.exercises.splice(evt.oldIndex, 1)[0];
+                workout.exercises.splice(evt.newIndex, 0, movedItem);
                 saveData();
+            }
+        });
+
+        const tabsContainer = document.getElementById('tabs-list');
+        new Sortable(tabsContainer, {
+            animation: 150,
+            onEnd: function (evt) {
+                const movedItem = workouts.splice(evt.oldIndex, 1)[0];
+                workouts.splice(evt.newIndex, 0, movedItem);
+                saveData();
+                render();
             }
         });
     </script>
